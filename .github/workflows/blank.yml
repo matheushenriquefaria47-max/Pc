@@ -1,14 +1,14 @@
-name: Criar VPS Temporaria (RDP)
+name: PC Virtual Online
 
 on:
   workflow_dispatch:
     inputs:
-      senha_usuario:
+      senha:
         description: 'Defina a senha para o usuário (ou deixe padrão)'
         required: true
         default: '123456'
       ngrok_token:
-        description: 'Cole o seu Authtoken do Ngrok'
+        description: 'Cole aqui o seu Authtoken do Ngrok'
         required: true
 
 jobs:
@@ -17,30 +17,34 @@ jobs:
     timeout-minutes: 360 # Mantém a máquina ligada por até 6 horas
 
     steps:
-      - name: Atualizar sistema e instalar ambiente gráfico (XFCE + XRDP)
+      - name: Configurar Senha do Usuário
+        run: |
+          echo "runner:${{ github.event.inputs.senha }}" | sudo chpasswd
+          sudo usermod -aG sudo runner
+
+      - name: Instalar Servidor de Área de Trabalho (XFCE + XRDP)
         run: |
           sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies xrdp
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies xrdp dbus-x11
           echo "xfce4-session" > ~/.xsession
           sudo service xrdp restart
 
-      - name: Configurar senha do usuário
-        run: |
-          echo "runner:${{ github.event.inputs.senha_usuario }}" | sudo chpasswd
-
-      - name: Instalar e configurar o Ngrok
+      - name: Instalar e Configurar Ngrok
         run: |
           curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
           echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
           sudo apt-get update && sudo apt-get install -y ngrok
           ngrok config add-authtoken ${{ github.event.inputs.ngrok_token }}
 
-      - name: Iniciar Servidor RDP e Túnel
+      - name: Iniciar Servidor RDP e Exibir Endereço
         run: |
+          ngrok tcp 3389 > /dev/null &
+          sleep 5
           echo "=========================================="
-          echo "Conecte-se usando o endereço abaixo no seu cliente RDP/VNC:"
+          echo "Conecte-se usando um cliente RDP (ex: RD Client no celular):"
+          curl -s http://localhost:4040/api/tunnels | grep -o "tcp://[^\"]*" | sed 's/tcp:\/\///'
           echo "Usuário: runner"
-          echo "Senha: ${{ github.event.inputs.senha_usuario }}"
+          echo "Senha: ${{ github.event.inputs.senha }}"
           echo "=========================================="
-          ngrok tcp 3389
+          sleep 21500
           

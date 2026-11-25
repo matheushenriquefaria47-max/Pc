@@ -1,38 +1,46 @@
-
-name: PC Virtual Linux
+name: Criar VPS Temporaria (RDP)
 
 on:
   workflow_dispatch:
+    inputs:
+      senha_usuario:
+        description: 'Defina a senha para o usuário (ou deixe padrão)'
+        required: true
+        default: '123456'
+      ngrok_token:
+        description: 'Cole o seu Authtoken do Ngrok'
+        required: true
 
 jobs:
-  linux:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 360
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # Mantém a máquina ligada por até 6 horas
 
     steps:
-      - name: Atualizar sistema
+      - name: Atualizar sistema e instalar ambiente gráfico (XFCE + XRDP)
         run: |
-          sudo apt update
-          sudo apt upgrade -y
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies xrdp
+          echo "xfce4-session" > ~/.xsession
+          sudo service xrdp restart
 
-      - name: Instalar ambiente gráfico
+      - name: Configurar senha do usuário
         run: |
-          sudo apt install -y xfce4 xfce4-goodies
-          sudo apt install -y tigervnc-standalone-server
-          sudo apt install -y dbus-x11
+          echo "runner:${{ github.event.inputs.senha_usuario }}" | sudo chpasswd
 
-      - name: Configurar VNC
+      - name: Instalar e configurar o Ngrok
         run: |
-          mkdir -p ~/.vnc
-          echo "virtualpc" | vncpasswd -f > ~/.vnc/passwd
-          chmod 600 ~/.vnc/passwd
-          echo "#!/bin/sh" > ~/.vnc/xstartup
-          echo "startxfce4 &" >> ~/.vnc/xstartup
-          chmod +x ~/.vnc/xstartup
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt-get update && sudo apt-get install -y ngrok
+          ngrok config add-authtoken ${{ github.event.inputs.ngrok_token }}
 
-      - name: Iniciar PC virtual
+      - name: Iniciar Servidor RDP e Túnel
         run: |
-          vncserver :1 -geometry 1280x720 -depth 24
-          echo "PC virtual iniciado!"
-          sleep 21600
+          echo "=========================================="
+          echo "Conecte-se usando o endereço abaixo no seu cliente RDP/VNC:"
+          echo "Usuário: runner"
+          echo "Senha: ${{ github.event.inputs.senha_usuario }}"
+          echo "=========================================="
+          ngrok tcp 3389
           

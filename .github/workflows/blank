@@ -1,0 +1,46 @@
+name: Criar VPS Temporaria (RDP)
+
+on:
+  workflow_dispatch:
+    inputs:
+      senha_usuario:
+        description: 'Defina a senha para o usuário (ou deixe padrão)'
+        required: true
+        default: '123456'
+      ngrok_token:
+        description: 'Cole o seu Authtoken do Ngrok'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # Mantém a máquina ligada por até 6 horas
+
+    steps:
+      - name: Atualizar sistema e instalar ambiente gráfico (XFCE + XRDP)
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies xrdp
+          echo "xfce4-session" > ~/.xsession
+          sudo service xrdp restart
+
+      - name: Configurar senha do usuário
+        run: |
+          echo "runner:${{ github.event.inputs.senha_usuario }}" | sudo chpasswd
+
+      - name: Instalar e configurar o Ngrok
+        run: |
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt-get update && sudo apt-get install -y ngrok
+          ngrok config add-authtoken ${{ github.event.inputs.ngrok_token }}
+
+      - name: Iniciar Servidor RDP e Túnel
+        run: |
+          echo "=========================================="
+          echo "Conecte-se usando o endereço abaixo no seu cliente RDP/VNC:"
+          echo "Usuário: runner"
+          echo "Senha: ${{ github.event.inputs.senha_usuario }}"
+          echo "=========================================="
+          ngrok tcp 3389
+          

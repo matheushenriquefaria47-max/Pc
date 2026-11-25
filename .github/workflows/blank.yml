@@ -1,0 +1,38 @@
+
+name: PC Virtual Linux
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Atualizar sistema
+        run: |
+          sudo apt update
+          sudo apt upgrade -y
+
+      - name: Instalar ambiente gráfico
+        run: |
+          sudo apt install -y xfce4 xfce4-goodies
+          sudo apt install -y tigervnc-standalone-server
+          sudo apt install -y dbus-x11
+
+      - name: Configurar VNC
+        run: |
+          mkdir -p ~/.vnc
+          echo "virtualpc" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+          echo "#!/bin/sh" > ~/.vnc/xstartup
+          echo "startxfce4 &" >> ~/.vnc/xstartup
+          chmod +x ~/.vnc/xstartup
+
+      - name: Iniciar PC virtual
+        run: |
+          vncserver :1 -geometry 1280x720 -depth 24
+          echo "PC virtual iniciado!"
+          sleep 21600
+          

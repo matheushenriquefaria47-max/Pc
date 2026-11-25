@@ -1,0 +1,24 @@
+
+name: Windows Virtual
+
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Iniciar Windows
+        run: |
+          Write-Host "Windows Virtual iniciado!"
+          systeminfo
+      - name: Informações do sistema
+        run: |
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion
+      - name: Verificar arquivos
+        run: |
+          Get-ChildItem C:\
+      - name: Finalizar
+        run: |
+          Write-Host "Sessão concluída!"
+          
